@@ -3291,6 +3291,8 @@ id clip_vertical
 id clockwise
 id closest
 id collapseActionView
+id compareButton
+id comparisonResultTextView
 id compatible
 id compress
 id confirm_button
@@ -3396,6 +3398,7 @@ id horizontal_only
 id icon
 id icon_group
 id icon_only
+id idFaceImageView
 id ifRoom
 id ignore
 id ignoreRequest
@@ -3702,6 +3705,7 @@ id uniform
 id unlabeled
 id up
 id useLogo
+id userFaceImageView
 id vertical_only
 id view_offset_helper
 id view_transition
@@ -3837,6 +3841,7 @@ layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_cart
+layout activity_face_compare
 layout activity_inventory
 layout activity_main
 layout activity_map

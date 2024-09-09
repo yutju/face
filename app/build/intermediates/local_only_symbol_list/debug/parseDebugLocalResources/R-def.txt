@@ -22,10 +22,13 @@ id age_restriction_submessage
 id button
 id captureButton
 id cart_button
+id compareButton
+id comparisonResultTextView
 id confirm_button
 id custom_view
 id decreaseButton
 id deleteButton
+id idFaceImageView
 id imageView
 id increaseButton
 id inventoryRecyclerView
@@ -63,7 +66,9 @@ id total_amount
 id total_amount_summary
 id total_quantity
 id total_summary
+id userFaceImageView
 layout activity_cart
+layout activity_face_compare
 layout activity_inventory
 layout activity_main
 layout activity_map

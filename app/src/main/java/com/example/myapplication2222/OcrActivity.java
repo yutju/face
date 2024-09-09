@@ -7,7 +7,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
+import android.os.Environment;
 import android.util.Log;
 import android.util.Size;
 import android.view.Display;
@@ -33,8 +33,8 @@ import androidx.lifecycle.LifecycleOwner;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
 
 import java.io.File;
@@ -44,11 +44,11 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class OcrActivity extends AppCompatActivity {
 
@@ -167,7 +167,8 @@ public class OcrActivity extends AppCompatActivity {
     private void takePhoto() {
         if (imageCapture == null) return;
 
-        photoFile = new File(getExternalFilesDir(null), "photo.jpg");
+        // Scoped Storage 정책에 맞게 수정
+        photoFile = new File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "photo.jpg");
         ImageCapture.OutputFileOptions outputOptions = new ImageCapture.OutputFileOptions.Builder(photoFile).build();
 
         imageCapture.takePicture(outputOptions, cameraExecutor, new ImageCapture.OnImageSavedCallback() {
@@ -176,7 +177,7 @@ public class OcrActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     Toast.makeText(OcrActivity.this, "사진이 저장되었습니다.", Toast.LENGTH_SHORT).show();
                     updateImageView(Uri.fromFile(photoFile));
-                    cameraProvider.unbindAll();
+                    startCamera(); // 카메라를 다시 시작
                 });
                 Log.d("OcrActivity", "Photo saved at: " + photoFile.getAbsolutePath());
                 processImage(Uri.fromFile(photoFile));
@@ -212,11 +213,11 @@ public class OcrActivity extends AppCompatActivity {
                         String recognizedText = text.getText();
                         Log.d("OcrActivity", "Recognized text: " + recognizedText);
 
-                        // 생년월일 및 면허증 패턴 정의
+                        // 생년월일 패턴 정의 (yymmdd)
                         String dobPattern = "\\b(19\\d{2}|20\\d{2})[./-]?(0[1-9]|1[0-2])[./-]?(0[1-9]|[12][0-9]|3[01])\\b" +
-                                "|\\b(\\d{4})[년\\s-](0[1-9]|1[0-2])[월\\s-](0[1-9]|[12][0-9]|3[01])[일\\s-]?\\b" +
-                                "|\\b(\\d{6})\\b";  // 필요한 경우 더 많은 패턴 추가
+                                "|\\b(\\d{2})(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])\\b";
 
+                        // 면허증 번호 패턴
                         String licenseNumberPattern = "\\b\\d{2}-\\d{2}-\\d{6}-\\d{2}\\b";
 
                         if (containsLicenseNumber(recognizedText, licenseNumberPattern)) {
@@ -225,7 +226,11 @@ public class OcrActivity extends AppCompatActivity {
                             if (dob != null) {
                                 boolean isAdult = !isMinor(dob);
                                 runOnUiThread(() -> resultTextView.setText(isAdult ? "성인입니다." : "미성년자입니다."));
-                                sendResult(isAdult);
+                                if (isAdult) {
+                                    moveToFaceCompareActivity(imageUri);
+                                } else {
+                                    sendResult(false);
+                                }
                             } else {
                                 runOnUiThread(() -> resultTextView.setText("생년월일을 찾을 수 없습니다."));
                                 sendResult(false);
@@ -236,7 +241,11 @@ public class OcrActivity extends AppCompatActivity {
                             if (dob != null) {
                                 boolean isAdult = !isMinor(dob);
                                 runOnUiThread(() -> resultTextView.setText(isAdult ? "성인입니다." : "미성년자입니다."));
-                                sendResult(isAdult);
+                                if (isAdult) {
+                                    moveToFaceCompareActivity(imageUri);
+                                } else {
+                                    sendResult(false);
+                                }
                             } else {
                                 runOnUiThread(() -> resultTextView.setText("생년월일을 찾을 수 없습니다."));
                                 sendResult(false);
@@ -254,54 +263,51 @@ public class OcrActivity extends AppCompatActivity {
         }
     }
 
-    // 텍스트에서 생년월일 찾기
-    private String findDateOfBirth(String text, String[] patterns) {
-        for (String pattern : patterns) {
-            Pattern p = Pattern.compile(pattern);
-            Matcher m = p.matcher(text);
-            if (m.find()) {
-                String matchedDate = m.group();
-                if (pattern.contains("년") || pattern.contains("월") || pattern.contains("일")) {
-                    return matchedDate.replaceAll("[^0-9]", "");
-                }
-                return matchedDate;
-            }
-        }
-        return null;
+    // 성인 인증 후 FaceCompareActivity로 이동
+    private void moveToFaceCompareActivity(Uri imageUri) {
+        Intent intent = new Intent(OcrActivity.this, FaceCompareActivity.class);
+        intent.putExtra("ID_PHOTO_URI", imageUri.toString());
+        startActivity(intent);
     }
 
-    // 텍스트에서 면허증 번호가 포함되어 있는지 확인
+    // 면허증 번호가 포함되어 있는지 확인
     private boolean containsLicenseNumber(String text, String pattern) {
         Pattern p = Pattern.compile(pattern);
         Matcher m = p.matcher(text);
         return m.find();
     }
 
-    // 생년월일을 기반으로 성인 여부 확인
-    private boolean isMinor(String dob) {
-        try {
-            SimpleDateFormat sdf;
-            if (dob.length() == 6) {
-                sdf = new SimpleDateFormat("yyMMdd", Locale.getDefault());
-            } else {
-                sdf = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
+    // 생년월일 찾기
+    private String findDateOfBirth(String text, String[] patterns) {
+        for (String pattern : patterns) {
+            Pattern p = Pattern.compile(pattern);
+            Matcher m = p.matcher(text);
+            if (m.find()) {
+                return m.group();
             }
-            Date dateOfBirth = sdf.parse(dob);
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.YEAR, -19);
-            return dateOfBirth.after(cal.getTime());
-        } catch (ParseException e) {
-            Log.e("OcrActivity", "생년월일 파싱 오류", e);
-            return false;
         }
+        return null;
     }
 
-    // 결과를 메인 액티비티에 전달
-    private void sendResult(boolean isAdult) {
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("IS_ADULT", isAdult);
-        setResult(RESULT_OK, resultIntent);
-        finish();
+    // 생년월일로 성인 여부 확인
+    private boolean isMinor(String dob) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyMMdd", Locale.getDefault());
+        try {
+            Date birthDate = sdf.parse(dob);
+            Calendar today = Calendar.getInstance();
+            Calendar birth = Calendar.getInstance();
+            birth.setTime(birthDate);
+            int age = today.get(Calendar.YEAR) - birth.get(Calendar.YEAR);
+            if (today.get(Calendar.MONTH) + 1 < birth.get(Calendar.MONTH) + 1 ||
+                    (today.get(Calendar.MONTH) + 1 == birth.get(Calendar.MONTH) + 1 &&
+                            today.get(Calendar.DAY_OF_MONTH) < birth.get(Calendar.DAY_OF_MONTH))) {
+                age--;
+            }
+            return age < 18;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // 권한 요청 결과 처리
@@ -325,5 +331,13 @@ public class OcrActivity extends AppCompatActivity {
         if (cameraExecutor != null) {
             cameraExecutor.shutdown();
         }
+    }
+
+    // OCR 결과를 다른 액티비티로 전달
+    private void sendResult(boolean isAdult) {
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra("IS_ADULT", isAdult);
+        setResult(RESULT_OK, resultIntent);
+        finish();
     }
 }

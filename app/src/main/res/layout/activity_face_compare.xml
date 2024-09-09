@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 신분증 얼굴 이미지 -->
+    <ImageView
+        android:id="@+id/idFaceImageView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#E0E0E0"
+        android:scaleType="fitCenter" />
+
+    <!-- 사용자의 얼굴 이미지 -->
+    <ImageView
+        android:id="@+id/userFaceImageView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#E0E0E0"
+        android:scaleType="fitCenter" />
+
+    <!-- 비교 버튼 -->
+    <Button
+        android:id="@+id/compareButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="본인 인증하기"
+        android:layout_gravity="center" />
+
+    <!-- 결과 텍스트 -->
+    <TextView
+        android:id="@+id/comparisonResultTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="본인 인증 결과"
+        android:textSize="16sp"
+        android:textColor="#000"
+        android:layout_gravity="center"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>
